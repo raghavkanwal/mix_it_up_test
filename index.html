@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Testing out MixItUp.js</title>
+	<link type="text/css" rel="stylesheet" href="css/main.css">
+	<script src="http://code.jquery.com/jquery-1.11.2.min.js"></script>
+	<script src="http://cdn.jsdelivr.net/jquery.mixitup/latest/jquery.mixitup.min.js"></script>
+</head>
+<body>
+	<div class="header_wrapper">
+		<div class="container">
+			<div class="logo">Testing out MixItUp.js</div>
+		</div>
+	</div>
+	<div class="body_wrapper">
+		<div class="container">
+			<div class="intro">
+				<p>Filtering through Buttons [Single Filter]-> 
+					<button class="filter" data-filter=".green">Green</button>
+					<button class="filter" data-filter=".red">Red</button>
+					<button class="filter" data-filter=".blue">Blue</button>
+					<button class="sort" data-sort="order:desc">Descending</button>
+					<button class="sort" data-sort="order:asc">Ascending</button>
+					<button class="sort" data-sort="random">Random</button>
+					<button class="filter" data-filter="none">None</button>
+					<button class="filter" data-filter="all">All</button>
+				</p>
+				<hr>
+
+				<p>Filtering through Checkboxes [Multiple Filters]-> 
+					<form class="controls" id="check_Filters">
+						<fieldset>
+							<input type="checkbox" value=".green"><label>Green</label>
+							<input type="checkbox" value=".red"><label>Red</label>
+							<input type="checkbox" value=".blue"><label>Blue</label>
+						</fieldset>
+					</form>
+				</p>
+				<hr>
+
+				<p>Filtering through Dropdowns [Single Filter]-> 
+			
+					<form class="controls" id="drop_Filters">
+						<fieldset>
+						    <select>
+						      <option selected="selected" value="">All</option>
+						      <option value=".green">Green</option>
+						      <option value=".red">Red</option>
+						      <option value=".blue">Blue</option>
+						    </select>
+		  				</fieldset>
+			</div>	
+			
+			<div class="main_content" id="Container">
+				<div data-order="1" class="box mix green"></div>
+				<div data-order="2" class="box mix green"></div>
+				<div data-order="3" class="box mix red"></div>
+				<div data-order="4" class="box mix red"></div>
+				<div data-order="5" class="box mix green"></div>
+				<div data-order="6" class="box mix blue"></div>
+				<div data-order="7" class="box mix green"></div>
+				<div data-order="8" class="box mix blue"></div>
+				<div data-order="9" class="box mix red"></div>
+				<div data-order="10" class="box mix green"></div>
+				<div data-order="11" class="box mix blue"></div>
+				<div data-order="12" class="box mix green"></div>
+				<div data-order="13" class="box mix blue"></div>
+				<div data-order="14" class="box mix red"></div>
+				<div data-order="15" class="box mix green"></div>
+				<div data-order="16" class="box mix blue"></div>
+				<div data-order="17" class="box mix green"></div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+
+	// On document ready:
+
+$(document).ready(function(){
+
+	// Instantiate MixItUp:
+
+	$('#Container').mixItUp();
+	
+	$(".box").each( function() {
+		$(this).html($(this).attr("data-order"));
+	});
+
+/****************************
+CheckBoxes
+*****************************/
+
+// To keep our code clean and modular, all custom functionality will be contained inside a single object literal called "checkboxFilter".
+
+var checkboxFilter = {
+  
+  // Declare any variables we will need as properties of the object
+  
+  $filters: null,
+  $reset: null,
+  groups: [],
+  outputArray: [],
+  outputString: '',
+  
+  // The "init" method will run on document ready and cache any jQuery objects we will need.
+  
+  init: function(){
+    var self = this; // As a best practice, in each method we will asign "this" to the variable "self" so that it remains scope-agnostic. We will use it to refer to the parent "checkboxFilter" object so that we can share methods and properties between all parts of the object.
+    
+    self.$filters = $('#check_Filters');
+    self.$reset = $('#Reset');
+    self.$container = $('#Container');
+    
+    self.$filters.find('fieldset').each(function(){
+      self.groups.push({
+        $inputs: $(this).find('input'),
+        active: [],
+		    tracker: false
+      });
+    });
+    
+    self.bindHandlers();
+  },
+  
+  // The "bindHandlers" method will listen for whenever a form value changes. 
+  
+  bindHandlers: function(){
+    var self = this;
+    
+    self.$filters.on('change', function(){
+      self.parseFilters();
+    });
+    
+    self.$reset.on('click', function(e){
+      e.preventDefault();
+      self.$filters[0].reset();
+      self.parseFilters();
+    });
+  },
+  
+  // The parseFilters method checks which filters are active in each group:
+  
+  parseFilters: function(){
+    var self = this;
+ 
+    // loop through each filter group and add active filters to arrays
+    
+    for(var i = 0, group; group = self.groups[i]; i++){
+      group.active = []; // reset arrays
+      group.$inputs.each(function(){ 
+        $(this).is(':checked') && group.active.push(this.value);
+      });
+	    group.active.length && (group.tracker = 0);
+    }
+    
+    self.concatenate();
+  },
+  
+  // The "concatenate" method will crawl through each group, concatenating filters as desired:
+  
+  concatenate: function(){
+    var self = this,
+		  cache = '',
+		  crawled = false,
+		  checkTrackers = function(){
+        var done = 0;
+        
+        for(var i = 0, group; group = self.groups[i]; i++){
+          (group.tracker === false) && done++;
+        }
+
+        return (done < self.groups.length);
+      },
+      crawl = function(){
+        for(var i = 0, group; group = self.groups[i]; i++){
+          group.active[group.tracker] && (cache += group.active[group.tracker]);
+
+          if(i === self.groups.length - 1){
+            self.outputArray.push(cache);
+            cache = '';
+            updateTrackers();
+          }
+        }
+      },
+      updateTrackers = function(){
+        for(var i = self.groups.length - 1; i > -1; i--){
+          var group = self.groups[i];
+
+          if(group.active[group.tracker + 1]){
+            group.tracker++; 
+            break;
+          } else if(i > 0){
+            group.tracker && (group.tracker = 0);
+          } else {
+            crawled = true;
+          }
+        }
+      };
+    
+    self.outputArray = []; // reset output array
+
+	  do{
+		  crawl();
+	  }
+	  while(!crawled && checkTrackers());
+
+    self.outputString = self.outputArray.join();
+    
+    // If the output string is empty, show all rather than none:
+    
+    !self.outputString.length && (self.outputString = 'all'); 
+    
+    //console.log(self.outputString); 
+    
+    // ^ we can check the console here to take a look at the filter string that is produced
+    
+    // Send the output string to MixItUp via the 'filter' method:
+    
+	  if(self.$container.mixItUp('isLoaded')){
+    	self.$container.mixItUp('filter', self.outputString);
+	  }
+  }
+};
+  
+// On document ready, initialise our code.
+
+$(function(){
+      
+  // Initialize checkboxFilter code
+      
+  checkboxFilter.init();
+      
+  // Instantiate MixItUp
+      
+  $('#Container').mixItUp({
+    controls: {
+      enable: false // we won't be needing these
+    },
+    animation: {
+      easing: 'cubic-bezier(0.86, 0, 0.07, 1)',
+      duration: 600
+    }
+  });    
+});
+
+
+});
+
+/****************************
+DropDowns
+*****************************/
+
+// To keep our code clean and modular, all custom functionality will be contained inside a single object literal called "dropdownFilter".
+
+var dropdownFilter = {
+  
+  // Declare any variables we will need as properties of the object
+  
+  $filters: null,
+  $reset: null,
+  groups: [],
+  outputArray: [],
+  outputString: '',
+  
+  // The "init" method will run on document ready and cache any jQuery objects we will need.
+  
+  init: function(){
+    var self = this; // As a best practice, in each method we will asign "this" to the variable "self" so that it remains scope-agnostic. We will use it to refer to the parent "dropdownFilter" object so that we can share methods and properties between all parts of the object.
+    
+    self.$filters = $('#drop_Filters');
+    self.$reset = $('#Reset');
+    self.$container = $('#Container');
+    
+    self.$filters.find('fieldset').each(function(){
+      self.groups.push({
+        $dropdown: $(this).find('select'),
+        active: ''
+      });
+    });
+    
+    self.bindHandlers();
+  },
+  
+  // The "bindHandlers" method will listen for whenever a select is changed. 
+  
+  bindHandlers: function(){
+    var self = this;
+    
+    // Handle select change
+    
+    self.$filters.on('change', 'select', function(e){
+      e.preventDefault();
+      
+      self.parseFilters();
+    });
+    
+    // Handle reset click
+    
+    self.$reset.on('click', function(e){
+      e.preventDefault();
+      
+      self.$filters.find('select').val('');
+      
+      self.parseFilters();
+    });
+  },
+  
+  // The parseFilters method pulls the value of each active select option
+  
+  parseFilters: function(){
+    var self = this;
+ 
+    // loop through each filter group and grap the value from each one.
+    
+    for(var i = 0, group; group = self.groups[i]; i++){
+      group.active = group.$dropdown.val();
+    }
+    
+    self.concatenate();
+  },
+  
+  // The "concatenate" method will crawl through each group, concatenating filters as desired:
+  
+  concatenate: function(){
+    var self = this;
+    
+    self.outputString = ''; // Reset output string
+    
+    for(var i = 0, group; group = self.groups[i]; i++){
+      self.outputString += group.active;
+    }
+    
+    // If the output string is empty, show all rather than none:
+    
+    !self.outputString.length && (self.outputString = 'all'); 
+    
+    //console.log(self.outputString); 
+    
+    // ^ we can check the console here to take a look at the filter string that is produced
+    
+    // Send the output string to MixItUp via the 'filter' method:
+    
+	  if(self.$container.mixItUp('isLoaded')){
+    	self.$container.mixItUp('filter', self.outputString);
+	  }
+  }
+};
+  
+// On document ready, initialise our code.
+
+$(function(){
+      
+  // Initialize dropdownFilter code
+      
+  dropdownFilter.init();
+      
+  // Instantiate MixItUp
+      
+  $('#Container').mixItUp({
+    controls: {
+      enable: false // we won't be needing these
+    },
+    callbacks: {
+      onMixFail: function(){
+        alert('No items were found matching the selected filters.');
+      }
+    }
+  });    
+});
+
+
+	</script>
+</body>
+</html>
